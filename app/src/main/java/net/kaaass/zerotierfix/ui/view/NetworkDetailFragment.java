@@ -14,9 +14,14 @@ import androidx.annotation.NonNull;
 import androidx.annotation.UiThread;
 import androidx.fragment.app.Fragment;
 import androidx.lifecycle.ViewModelProvider;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
+import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 
+import com.zerotier.sdk.Peer;
+import com.zerotier.sdk.PeerPhysicalPath;
 import com.zerotier.sdk.VirtualNetworkConfig;
-import com.zerotier.sdk.util.StringUtils;
+import net.kaaass.zerotierfix.util.StringUtils;
 
 import net.kaaass.zerotierfix.R;
 import net.kaaass.zerotierfix.model.Network;
@@ -31,12 +36,10 @@ import net.kaaass.zerotierfix.util.Constants;
 import java.net.Inet6Address;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 
-/**
- * 展示网络详细信息的 fragment
- *
- * @author kaaass
- */
 public class NetworkDetailFragment extends Fragment {
     private static final String TAG = "NetworkDetailView";
 
@@ -55,15 +58,16 @@ public class NetworkDetailFragment extends Fragment {
     private TableRow dnsView;
     private TextView dnsServersView;
 
+    private SwipeRefreshLayout peerSwipeRefresh;
+    private RecyclerView peerRecyclerView;
+    private TextView peerEmptyView;
+    private PeerListAdapter peerAdapter;
+    private final List<Peer> peerList = new ArrayList<>();
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-
-        // 获取 ViewModel
         this.viewModel = (NetworkDetailModel) new ViewModelProvider(this).get(NetworkDetailModel.class);
-
-        // 如果参数中有网络 ID，就加载对应网络的信息
         if (getArguments() != null) {
             long networkId = getArguments().getLong(NetworkListFragment.NETWORK_ID_MESSAGE);
             viewModel.doRetrieveDetail(networkId);
@@ -76,7 +80,6 @@ public class NetworkDetailFragment extends Fragment {
     public View onCreateView(@NonNull LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
         View view = inflater.inflate(R.layout.fragment_network_detail, container, false);
 
-        // 获取各个控件
         this.idView = view.findViewById(R.id.network_detail_network_id);
         this.nameView = view.findViewById(R.id.network_detail_network_name);
         this.statusView = view.findViewById(R.id.network_status_textview);
@@ -91,21 +94,28 @@ public class NetworkDetailFragment extends Fragment {
         this.dnsView = view.findViewById(R.id.custom_dns_row);
         this.dnsServersView = view.findViewById(R.id.network_dns_textview);
 
-        // 设置回调
+        this.peerSwipeRefresh = view.findViewById(R.id.swipe_refresh_network_peers);
+        this.peerRecyclerView = view.findViewById(R.id.network_peer_list);
+        this.peerEmptyView = view.findViewById(R.id.network_peer_no_data);
+        this.peerAdapter = new PeerListAdapter(this.peerList);
+        this.peerRecyclerView.setLayoutManager(new LinearLayoutManager(getContext()));
+        this.peerRecyclerView.setAdapter(this.peerAdapter);
+        this.peerSwipeRefresh.setOnRefreshListener(() -> {
+            viewModel.doRetrieveNetworkPeers();
+            peerSwipeRefresh.setRefreshing(false);
+        });
+
         this.routeViaZtView.setOnCheckedChangeListener((buttonView, isChecked) ->
                 viewModel.doUpdateRouteViaZeroTier(isChecked));
 
-        // 设置对应的 UI 更新操作
         viewModel.getNetwork().observe(getViewLifecycleOwner(), this::updateNetwork);
         viewModel.getNetworkConfig().observe(getViewLifecycleOwner(), this::updateNetworkConfig);
         viewModel.getVirtualNetworkConfig().observe(getViewLifecycleOwner(), this::updateVirtualNetworkConfig);
+        viewModel.getNetworkPeers().observe(getViewLifecycleOwner(), this::updateNetworkPeers);
 
         return view;
     }
 
-    /**
-     * 更新网络基本信息相关的 UI
-     */
     @UiThread
     private void updateNetwork(Network network) {
         if (network == null) {
@@ -119,55 +129,37 @@ public class NetworkDetailFragment extends Fragment {
         }
     }
 
-    /**
-     * 更新持久化网络配置相关的 UI
-     */
     @UiThread
     private void updateNetworkConfig(NetworkConfig networkConfig) {
         if (networkConfig == null) {
             return;
         }
-
-        // DNS 模式
         var dnsMode = DNSMode.fromInt(networkConfig.getDnsMode());
         this.dnsModeView.setText(dnsMode.toStringId());
-
-        // 仅当 DNS 模式为网络时显示服务器地址
         this.dnsView.setVisibility(dnsMode == DNSMode.NETWORK_DNS ? View.VISIBLE : View.INVISIBLE);
-
-        // 通过 ZT 路由
         this.routeViaZtView.setChecked(networkConfig.getRouteViaZeroTier());
     }
 
-    /**
-     * 更新虚拟网络配置（从 ZT 服务实时获取的网络动态配置）相关的 UI
-     */
     @UiThread
     private void updateVirtualNetworkConfig(VirtualNetworkConfig virtualNetworkConfig) {
         if (virtualNetworkConfig == null) {
             return;
         }
-
-        // 网络类型
         var ztType = virtualNetworkConfig.getType();
         var type = NetworkType.fromVirtualNetworkType(ztType);
         this.typeView.setText(type.toStringId());
 
-        // 网络状态
         var ztStatus = virtualNetworkConfig.getStatus();
         var status = NetworkStatus.fromVirtualNetworkStatus(ztStatus);
         this.statusView.setText(status.toStringId());
 
-        // MAC、MTU、广播、桥接
-        this.macView.setText(StringUtils.macAddressToString(virtualNetworkConfig.getMac()));
+        this.macView.setText(com.zerotier.sdk.util.StringUtils.macAddressToString(virtualNetworkConfig.getMac()));
         this.mtuView.setText(String.valueOf(virtualNetworkConfig.getMtu()));
         this.broadcastView.setText(booleanToLocalString(virtualNetworkConfig.isBroadcastEnabled()));
         this.bridgingView.setText(booleanToLocalString(virtualNetworkConfig.isBridge()));
 
-        // 分配的 IP 地址
         var addresses = virtualNetworkConfig.getAssignedAddresses();
         var strAssignedAddresses = new StringBuilder();
-
         for (int i = 0; i < addresses.length; i++) {
             strAssignedAddresses.append(inetSocketAddressToString(addresses[i]));
             if (i < addresses.length - 1) {
@@ -176,12 +168,10 @@ public class NetworkDetailFragment extends Fragment {
         }
         this.ipAddressesView.setText(strAssignedAddresses.toString());
 
-        // DNS 服务地址
         var dns = virtualNetworkConfig.getDns();
         if (dns != null) {
             var dnsServers = dns.getServers();
             var strDnsServers = new StringBuilder();
-
             for (int i = 0; i < dnsServers.size(); i++) {
                 strDnsServers.append(inetSocketAddressToString(dnsServers.get(i)));
                 if (i < dnsServers.size() - 1) {
@@ -202,29 +192,99 @@ public class NetworkDetailFragment extends Fragment {
         if (inetSocketAddress == null) {
             return null;
         }
-
         boolean disableIpv6 = PreferenceManager
                 .getDefaultSharedPreferences(getActivity())
                 .getBoolean(Constants.PREF_NETWORK_DISABLE_IPV6, false);
-
         try {
             InetAddress address = inetSocketAddress.getAddress();
-
-            // 如果禁用了 IPv6，那么就不显示 IPv6 地址
             if (address instanceof Inet6Address && disableIpv6) {
                 return null;
             }
-
-            // 去除地址前面的斜杠
             var strAddress = address.toString();
             if (strAddress.startsWith("/")) {
                 strAddress = strAddress.substring(1);
             }
-
-            // 拼接地址和前缀
             return strAddress + "/" + inetSocketAddress.getPort();
         } catch (Exception ignored) {
         }
         return null;
+    }
+
+    @UiThread
+    private void updateNetworkPeers(Peer[] peers) {
+        this.peerList.clear();
+        if (peers != null) {
+            Collections.addAll(this.peerList, peers);
+        }
+        this.peerAdapter.notifyDataSetChanged();
+        boolean empty = this.peerList.isEmpty();
+        this.peerEmptyView.setVisibility(empty ? View.VISIBLE : View.GONE);
+        this.peerRecyclerView.setVisibility(empty ? View.GONE : View.VISIBLE);
+    }
+
+    private class PeerListAdapter extends RecyclerView.Adapter<PeerListAdapter.ViewHolder> {
+
+        private final List<Peer> mValues;
+
+        public PeerListAdapter(List<Peer> items) {
+            mValues = items;
+        }
+
+        @NonNull
+        @Override
+        public ViewHolder onCreateViewHolder(ViewGroup parent, int viewType) {
+            View view = LayoutInflater.from(parent.getContext())
+                    .inflate(R.layout.list_item_peer, parent, false);
+            return new ViewHolder(view);
+        }
+
+        @Override
+        public void onBindViewHolder(final ViewHolder holder, int position) {
+            Peer peer = mValues.get(position);
+            holder.mAddress.setText(com.zerotier.sdk.util.StringUtils.addressToString(peer.getAddress()));
+            holder.mRole.setVisibility(View.GONE);
+            holder.mLatency.setText(String.format(getString(R.string.peer_lat), peer.getLatency()));
+            String clientVersion = getString(R.string.unknown_version);
+            if (peer.getVersionMajor() > 0) {
+                clientVersion = StringUtils.peerVersionString(peer);
+            }
+            holder.mVersion.setText(clientVersion);
+            PeerPhysicalPath preferred = null;
+            if (peer.getPaths() != null) {
+                for (PeerPhysicalPath path : peer.getPaths()) {
+                    if (path.isPreferred()) {
+                        preferred = path;
+                        break;
+                    }
+                }
+            }
+            String strPreferred = getString(R.string.peer_relay);
+            if (preferred != null) {
+                strPreferred = StringUtils.toString(preferred.getAddress());
+            }
+            holder.mPath.setText(strPreferred);
+        }
+
+        @Override
+        public int getItemCount() {
+            return mValues.size();
+        }
+
+        public class ViewHolder extends RecyclerView.ViewHolder {
+            public final TextView mAddress;
+            public final TextView mRole;
+            public final TextView mVersion;
+            public final TextView mLatency;
+            public final TextView mPath;
+
+            public ViewHolder(View view) {
+                super(view);
+                mAddress = view.findViewById(R.id.list_peer_addr);
+                mRole = view.findViewById(R.id.list_peer_role);
+                mVersion = view.findViewById(R.id.list_peer_ver);
+                mLatency = view.findViewById(R.id.list_peer_lat);
+                mPath = view.findViewById(R.id.list_peer_path);
+            }
+        }
     }
 }

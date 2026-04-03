@@ -1,0 +1,133 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Deep blue background -->
+    <path
+        android:fillColor="#1A237E"
+        android:pathData="M0,0h108v108h-108z" />
+    <!-- Subtle grid pattern for depth -->
+    <path
+        android:fillColor="#00000000"
+        android:pathData="M0,36h108M0,72h108M36,0v108M72,0v108"
+        android:strokeWidth="0.5"
+        android:strokeColor="#283593"
+        android:strokeAlpha="0.3" />
+    <!-- Large outer hexagon ring -->
+    <path
+        android:fillColor="#00000000"
+        android:pathData="M54,14L84,31L84,77L54,94L24,77L24,31Z"
+        android:strokeWidth="2.5"
+        android:strokeColor="#42A5F5"
+        android:strokeAlpha="0.4" />
+    <!-- Rotated inner hexagon ring -->
+    <path
+        android:fillColor="#00000000"
+        android:pathData="M54,28L72,38L72,68L54,78L36,68L36,38Z"
+        android:strokeWidth="2"
+        android:strokeColor="#64B5F6"
+        android:strokeAlpha="0.5" />
+    <!-- Central diamond -->
+    <path
+        android:fillColor="#42A5F5"
+        android:fillAlpha="0.15"
+        android:pathData="M54,38L68,54L54,70L40,54Z" />
+    <path
+        android:fillColor="#00000000"
+        android:pathData="M54,38L68,54L54,70L40,54Z"
+        android:strokeWidth="1.5"
+        android:strokeColor="#90CAF9"
+        android:strokeAlpha="0.8" />
+    <!-- Core node -->
+    <path
+        android:fillColor="#64B5F6"
+        android:pathData="M54,54m-7,0a7,7 0,1 1,14 0a7,7 0,1 1,-14 0" />
+    <!-- Inner glow -->
+    <path
+        android:fillColor="#E3F2FD"
+        android:pathData="M54,54m-3,0a3,3 0,1 1,6 0a3,3 0,1 1,-6 0"
+        android:fillAlpha="0.9" />
+    <!-- Connection lines from center to hexagon vertices -->
+    <path
+        android:fillColor="#00000000"
+        android:pathData="M54,47L54,28"
+        android:strokeWidth="1.5"
+        android:strokeColor="#BBDEFB"
+        android:strokeAlpha="0.6" />
+    <path
+        android:fillColor="#00000000"
+        android:pathData="M60,51L72,38"
+        android:strokeWidth="1.5"
+        android:strokeColor="#BBDEFB"
+        android:strokeAlpha="0.6" />
+    <path
+        android:fillColor="#00000000"
+        android:pathData="M60,57L72,68"
+        android:strokeWidth="1.5"
+        android:strokeColor="#90CAF9"
+        android:strokeAlpha="0.4" />
+    <path
+        android:fillColor="#00000000"
+        android:pathData="M54,61L54,78"
+        android:strokeWidth="1.5"
+        android:strokeColor="#90CAF9"
+        android:strokeAlpha="0.4" />
+    <path
+        android:fillColor="#00000000"
+        android:pathData="M48,57L36,68"
+        android:strokeWidth="1.5"
+        android:strokeColor="#90CAF9"
+        android:strokeAlpha="0.4" />
+    <path
+        android:fillColor="#00000000"
+        android:pathData="M48,51L36,38"
+        android:strokeWidth="1.5"
+        android:strokeColor="#BBDEFB"
+        android:strokeAlpha="0.6" />
+    <!-- Vertex nodes on hexagon -->
+    <path
+        android:fillColor="#42A5F5"
+        android:pathData="M54,28m-3,0a3,3 0,1 1,6 0a3,3 0,1 1,-6 0" />
+    <path
+        android:fillColor="#42A5F5"
+        android:pathData="M72,38m-3,0a3,3 0,1 1,6 0a3,3 0,1 1,-6 0" />
+    <path
+        android:fillColor="#1E88E5"
+        android:pathData="M72,68m-3,0a3,3 0,1 1,6 0a3,3 0,1 1,-6 0" />
+    <path
+        android:fillColor="#1E88E5"
+        android:pathData="M54,78m-3,0a3,3 0,1 1,6 0a3,3 0,1 1,-6 0" />
+    <path
+        android:fillColor="#1E88E5"
+        android:pathData="M36,68m-3,0a3,3 0,1 1,6 0a3,3 0,1 1,-6 0" />
+    <path
+        android:fillColor="#42A5F5"
+        android:pathData="M36,38m-3,0a3,3 0,1 1,6 0a3,3 0,1 1,-6 0" />
+    <!-- Outer scattered dots -->
+    <path
+        android:fillColor="#90CAF9"
+        android:pathData="M84,31m-2,0a2,2 0,1 1,4 0a2,2 0,1 1,-4 0"
+        android:fillAlpha="0.35" />
+    <path
+        android:fillColor="#90CAF9"
+        android:pathData="M84,77m-2,0a2,2 0,1 1,4 0a2,2 0,1 1,-4 0"
+        android:fillAlpha="0.25" />
+    <path
+        android:fillColor="#90CAF9"
+        android:pathData="M24,77m-2,0a2,2 0,1 1,4 0a2,2 0,1 1,-4 0"
+        android:fillAlpha="0.25" />
+    <path
+        android:fillColor="#90CAF9"
+        android:pathData="M24,31m-2,0a2,2 0,1 1,4 0a2,2 0,1 1,-4 0"
+        android:fillAlpha="0.35" />
+    <path
+        android:fillColor="#BBDEFB"
+        android:pathData="M54,14m-2,0a2,2 0,1 1,4 0a2,2 0,1 1,-4 0"
+        android:fillAlpha="0.3" />
+    <path
+        android:fillColor="#BBDEFB"
+        android:pathData="M54,94m-2,0a2,2 0,1 1,4 0a2,2 0,1 1,-4 0"
+        android:fillAlpha="0.2" />
+</vector>

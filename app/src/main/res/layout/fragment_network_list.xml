@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <androidx.coordinatorlayout.widget.CoordinatorLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/network_list_fragment"
     android:layout_width="match_parent"
     android:layout_height="match_parent">
@@ -9,7 +10,7 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent">
 
-        <androidx.recyclerview.widget.RecyclerView xmlns:tools="http://schemas.android.com/tools"
+        <androidx.recyclerview.widget.RecyclerView
             android:id="@+id/joined_networks_list"
             android:name="net.kaaass.zerotierfix.ui.NetworkListFragment"
             android:layout_width="match_parent"
@@ -17,17 +18,17 @@
             android:layout_above="@+id/status_bar"
             android:layout_alignParentTop="true"
             android:clipToPadding="false"
-            android:paddingBottom="80dp"
             app:layoutManager="LinearLayoutManager"
             tools:context=".ui.NetworkListFragment"
             tools:listitem="@layout/list_item_network" />
 
-        <RelativeLayout xmlns:tools="http://schemas.android.com/tools"
+        <RelativeLayout
             android:id="@+id/no_data"
             android:layout_width="match_parent"
-            android:layout_height="match_parent"
+            android:layout_height="wrap_content"
             android:layout_above="@+id/status_bar"
-            android:layout_alignParentTop="true">
+            android:layout_alignParentTop="true"
+            android:minHeight="200dp">
 
             <TextView
                 android:layout_width="wrap_content"
@@ -38,63 +39,100 @@
                 android:textSize="36sp" />
         </RelativeLayout>
 
-        <RelativeLayout
+        <LinearLayout
             android:id="@+id/status_bar"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_alignParentBottom="true"
             android:layout_gravity="bottom"
             android:background="@color/primary_green"
-            android:orientation="horizontal"
+            android:orientation="vertical"
             android:padding="5dp">
 
-            <TextView
-                android:id="@+id/node_id"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_centerVertical="true"
-                android:gravity="center"
-                android:padding="5dp"
-                android:text=""
-                android:textColor="?attr/lightGreyText" />
+            <RelativeLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content">
 
-            <TextView
-                android:id="@+id/node_status"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_centerVertical="true"
-                android:layout_toEndOf="@+id/node_id"
-                android:padding="5dp"
-                android:text="@string/status_offline"
-                android:textColor="?attr/lightGreyText" />
+                <TextView
+                    android:id="@+id/node_id"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_centerVertical="true"
+                    android:gravity="center"
+                    android:padding="5dp"
+                    android:text=""
+                    android:textColor="?attr/lightGreyText" />
 
-            <TextView
-                android:id="@+id/client_version"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_centerVertical="true"
-                android:layout_toEndOf="@+id/node_status"
-                android:padding="5dp"
-                android:text="@string/unknown_version"
-                android:textColor="?attr/lightGreyText" />
+                <TextView
+                    android:id="@+id/node_status"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_centerVertical="true"
+                    android:layout_toEndOf="@+id/node_id"
+                    android:padding="5dp"
+                    android:text="@string/status_offline"
+                    android:textColor="?attr/lightGreyText" />
 
-            <TextView
-                android:id="@+id/app_version"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_centerVertical="true"
-                android:layout_toEndOf="@+id/client_version"
-                android:text="@string/unknown_version"
-                android:textColor="?attr/lightGreyText" />
-        </RelativeLayout>
+                <TextView
+                    android:id="@+id/client_version"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_centerVertical="true"
+                    android:layout_toEndOf="@+id/node_status"
+                    android:padding="5dp"
+                    android:text="@string/unknown_version"
+                    android:textColor="?attr/lightGreyText" />
 
+                <TextView
+                    android:id="@+id/app_version"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_centerVertical="true"
+                    android:layout_toEndOf="@+id/client_version"
+                    android:text="@string/unknown_version"
+                    android:textColor="?attr/lightGreyText" />
+            </RelativeLayout>
+
+            <RelativeLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp">
+
+                <TextView
+                    android:id="@+id/ipv6_address"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_centerVertical="true"
+                    android:paddingStart="5dp"
+                    android:paddingEnd="8dp"
+                    android:text="@string/ipv6_not_available"
+                    android:textColor="?attr/lightGreyText"
+                    android:textSize="12sp"
+                    android:singleLine="true"
+                    android:ellipsize="middle" />
+
+                <TextView
+                    android:id="@+id/ipv6_status"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_centerVertical="true"
+                    android:layout_toEndOf="@+id/ipv6_address"
+                    android:paddingStart="5dp"
+                    android:paddingEnd="5dp"
+                    android:text="@string/ipv6_disconnected"
+                    android:textColor="@android:color/holo_red_light"
+                    android:textSize="12sp" />
+            </RelativeLayout>
+        </LinearLayout>
     </RelativeLayout>
 
     <com.google.android.material.floatingactionbutton.FloatingActionButton
         android:id="@+id/fab_add_network"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_gravity="bottom|end"
+        android:layout_gravity="end"
         android:layout_margin="@dimen/fab_margin"
-        app:srcCompat="@android:drawable/ic_input_add" />
+        app:layout_anchor="@id/status_bar"
+        app:layout_anchorGravity="end|top"
+        app:srcCompat="@drawable/ic_abstract_add" />
 </androidx.coordinatorlayout.widget.CoordinatorLayout>

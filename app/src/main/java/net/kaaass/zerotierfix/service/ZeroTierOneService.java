@@ -41,6 +41,8 @@ import net.kaaass.zerotierfix.events.NodeDestroyedEvent;
 import net.kaaass.zerotierfix.events.NodeIDEvent;
 import net.kaaass.zerotierfix.events.NodeStatusEvent;
 import net.kaaass.zerotierfix.events.NodeStatusRequestEvent;
+import net.kaaass.zerotierfix.events.NetworkPeerInfoReplyEvent;
+import net.kaaass.zerotierfix.events.NetworkPeerInfoRequestEvent;
 import net.kaaass.zerotierfix.events.OrbitMoonEvent;
 import net.kaaass.zerotierfix.events.PeerInfoReplyEvent;
 import net.kaaass.zerotierfix.events.PeerInfoRequestEvent;
@@ -656,6 +658,18 @@ public class ZeroTierOneService extends VpnService implements Runnable, EventLis
     }
 
     /**
+     * 请求指定网络的 Peer 信息事件回调
+     */
+    @Subscribe(threadMode = ThreadMode.BACKGROUND)
+    public void onRequestNetworkPeerInfo(NetworkPeerInfoRequestEvent event) {
+        if (this.node == null) {
+            this.eventBus.post(new NetworkPeerInfoReplyEvent(null));
+            return;
+        }
+        this.eventBus.post(new NetworkPeerInfoReplyEvent(this.node.networkPeers(event.getNwid())));
+    }
+
+    /**
      * 请求网络配置事件回调
      */
     @Subscribe(threadMode = ThreadMode.BACKGROUND)
@@ -958,9 +972,9 @@ public class ZeroTierOneService extends VpnService implements Runnable, EventLis
         var notification = new NotificationCompat.Builder(this, Constants.CHANNEL_ID)
                 .setPriority(1)
                 .setOngoing(true)
-                .setSmallIcon(R.mipmap.ic_launcher)
+                .setSmallIcon(R.drawable.ic_notification1)
                 .setContentTitle(getString(R.string.notification_title_connected))
-                .setContentText(getString(R.string.notification_text_connected, network.getNetworkIdStr()))
+                .setContentText(getString(R.string.notification_text_connected, network.getNetworkName()))
                 .setColor(ContextCompat.getColor(getApplicationContext(), R.color.zerotier_orange))
                 .setContentIntent(pendingIntent).build();
         this.notificationManager.notify(ZT_NOTIFICATION_TAG, notification);

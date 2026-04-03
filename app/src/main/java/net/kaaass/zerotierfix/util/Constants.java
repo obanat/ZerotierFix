@@ -25,7 +25,21 @@ public class Constants {
 
     public static final String FILE_PLANET = "planet";
 
-    public static final String CHANNEL_ID = "ZerotierFix";
+    public static final String CHANNEL_ID = "PrivNetwork";
 
-    public static final String VPN_SESSION_NAME = "ZerotierFix";
+    public static final String VPN_SESSION_NAME = "PrivNetwork";
+
+    public static final String CMD_MOVE_STOP = "MO00";
+    public static final String CMD_MOVE_UP = "MO11";
+    public static final String CMD_MOVE_DOWN = "MO22";
+    public static final String CMD_MOVE_LEFT = "MO10";
+    public static final String CMD_MOVE_RIGHT = "MO01";
+
+    public static final String REDIS_HOST = "i4free.x3322.net";
+    public static final int REDIS_PORT = 38086;
+    public static final int IPV6_CHECK_PORT = 80;
+    public static final int IPV6_CHECK_TIMEOUT = 3000;
+
+    public static final String CAR_CONTROL_IP = "10.144.0.1";//zerotier private ip of 4g dongle
+    public static final int CAR_CONTROL_PORT = 34002;//udp port for control message 4g dongle
 }
