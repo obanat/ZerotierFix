@@ -1,233 +1,240 @@
 package net.kaaass.zerotierfix.ui;
 
-
 import android.view.KeyEvent;
 import net.kaaass.zerotierfix.util.*;
 
-
-
-/* loaded from: classes.dex */
+/**
+ * WiFi 小车控制器
+ * 
+ * 方向模型（8方向 + 停止）：
+ *   0 = 停止
+ *   1 = 前进         MF
+ *   2 = 前进右转     FR  （差速转弯，不顿挫）
+ *   3 = 右转         MR  （原地转弯）
+ *   4 = 后退右转     BR
+ *   5 = 后退         MB
+ *   6 = 后退左转     BL
+ *   7 = 左转         ML
+ *   8 = 前进左转     FL
+ */
 public class WifiCarController {
 
     private static final String TAG = "WifiCarController";
-    private boolean moveTashRunning = true;
-    private int moveFlag = 0;
-    private int lastMoveFlag = 0;  // 记录上一次的方向，用于检测变化
-    private boolean isMoving = false;  // 是否正在移动
-    private volatile boolean returnedToCenter = false;  // 归位标志，防止回弹抖动
+    private final android.content.Context context;
 
-    int speed = 10;
+    // 8方向角度分区（每区45°），从正上方顺时针
+    // 方向 0° = 前，90° = 右，180° = 后，270° = 左
+    private static final double[] DIR_ANGLES = {
+        90.0,   // 1: 前进
+        45.0,   // 2: 前进右
+         0.0,   // 3: 右转
+       315.0,   // 4: 后退右
+       270.0,   // 5: 后退
+       225.0,   // 6: 后退左
+       180.0,   // 7: 左转
+       135.0    // 8: 前进左
+    };
+
+    // 方向 → 命令映射
+    private static final String[] DIR_CMDS = {
+        Constants.CMD_STOP,       // 0: 停止
+        Constants.CMD_FWD,        // 1: 前进
+        Constants.CMD_FWD_RIGHT,  // 2: 前进右转（差速）
+        Constants.CMD_RIGHT,      // 3: 原地右转
+        Constants.CMD_BWD_RIGHT,  // 4: 后退右转
+        Constants.CMD_BWD,        // 5: 后退
+        Constants.CMD_BWD_LEFT,   // 6: 后退左转
+        Constants.CMD_LEFT,       // 7: 原地左转
+        Constants.CMD_FWD_LEFT    // 8: 前进左转（差速）
+    };
+
+    private boolean moveTaskRunning = true;
+    private volatile int moveFlag = 0;
+    private volatile int lastSentFlag = 0;
+    private volatile boolean returnedToCenter = true;
+
+    // 速度档位
+    public enum SpeedGear {
+        LOW(Constants.CMD_SPEED_LOW),
+        HIGH(Constants.CMD_SPEED_HIGH);
+
+        public final String cmd;
+        SpeedGear(String cmd) { this.cmd = cmd; }
+    }
+    private volatile SpeedGear currentGear = SpeedGear.LOW;
+    private volatile boolean speedChanged = false;
+
+    public WifiCarController(android.content.Context context) {
+        this.context = context.getApplicationContext();
+    }
+
+    private static final long KEEPALIVE_INTERVAL = 150L;
+    private long lastSendTime = 0;
+
     private UdpSocket udpSocket;
-    private Thread movingTask = new Thread() { // from class: com.bigeye.WifiCarController.1
-        @Override // java.lang.Thread, java.lang.Runnable
+
+    private Thread movingTask = new Thread() {
+        @Override
         public void run() {
-            while (WifiCarController.this.moveTashRunning) {
+            lastSendTime = System.currentTimeMillis();
+            while (moveTaskRunning) {
                 try {
-                    synchronized (WifiCarController.this) {
-                        // 归位后忽略残余的 moveFlag，直接发 STOP 一次并保持静止
-                        if (WifiCarController.this.returnedToCenter) {
-                            if (WifiCarController.this.lastMoveFlag != 1) {
-                                sendControlCmd(Constants.CMD_MOVE_STOP);
-                                WifiCarController.this.lastMoveFlag = 1;
-                                WifiCarController.this.isMoving = false;
-                            }
-                            WifiCarController.this.moveFlag = 1;
-                        } else if (WifiCarController.this.moveFlag > 0) {
-                            String cmd = null;
-                            switch (WifiCarController.this.moveFlag) {
-                                case 1:
-                                    cmd = Constants.CMD_MOVE_STOP;
-                                    break;
-                                case 2:
-                                    cmd = Constants.CMD_MOVE_UP;
-                                    break;
-                                case 3:
-                                    cmd = Constants.CMD_MOVE_DOWN;
-                                    break;
-                                case 4:
-                                    cmd = Constants.CMD_MOVE_LEFT;
-                                    break;
-                                case 5:
-                                    cmd = Constants.CMD_MOVE_RIGHT;
-                                    break;
-                                default:
-                                    cmd = Constants.CMD_MOVE_STOP;
-                                    break;
-                            }
-                            // 非停止状态下持续发送，停止状态只在状态变化时发送一次
-                            if (WifiCarController.this.moveFlag != 1) {
+                    long now = System.currentTimeMillis();
+
+                    // 速度切换优先发送
+                    if (speedChanged) {
+                        sendControlCmd(currentGear.cmd);
+                        speedChanged = false;
+                    }
+
+                    int currentFlag = moveFlag;
+
+                    // 归位后只发一次 STOP
+                    if (returnedToCenter) {
+                        if (lastSentFlag != 0) {
+                            sendControlCmd(Constants.CMD_STOP);
+                            lastSentFlag = 0;
+                        }
+                    } else if (currentFlag > 0) {
+                        long elapsed = now - lastSendTime;
+                        boolean shouldSend = (currentFlag != lastSentFlag) || (elapsed >= KEEPALIVE_INTERVAL);
+
+                        if (shouldSend) {
+                            String cmd = DIR_CMDS[currentFlag];
+                            if (cmd != null) {
                                 sendControlCmd(cmd);
-                                WifiCarController.this.isMoving = true;
-                            } else if (WifiCarController.this.lastMoveFlag != 1) {
-                                sendControlCmd(cmd);
-                                WifiCarController.this.isMoving = false;
                             }
-                            WifiCarController.this.lastMoveFlag = WifiCarController.this.moveFlag;
-                        } else if (WifiCarController.this.lastMoveFlag != 1) {
-                            // 摇杆回到中心，发送停止命令
-                            sendControlCmd(Constants.CMD_MOVE_STOP);
-                            WifiCarController.this.lastMoveFlag = 1;
-                            WifiCarController.this.isMoving = false;
+                            lastSentFlag = currentFlag;
+                            lastSendTime = now;
                         }
                     }
-                    Thread.sleep(100L);  // 缩短间隔到100ms，更平滑的控制
-                } catch (Exception iOException) {
-                    return;
+
+                    Thread.sleep(20L);
+                } catch (InterruptedException e) {
+                    break;
+                } catch (Exception e) {
+                    AppLog.e(TAG, "movingTask error: " + e.getMessage());
                 }
             }
         }
     };
 
+    /**
+     * 设置速度档位
+     */
+    public void setSpeedGear(SpeedGear gear) {
+        if (this.currentGear != gear) {
+            this.currentGear = gear;
+            this.speedChanged = true;
+        }
+    }
 
+    public SpeedGear getSpeedGear() {
+        return currentGear;
+    }
+
+    /**
+     * 切换速度档位（高↔低）
+     */
+    public void toggleSpeed() {
+        setSpeedGear(currentGear == SpeedGear.LOW ? SpeedGear.HIGH : SpeedGear.LOW);
+    }
 
     public void backToInit() {
-        try {
-            synchronized (this) {
-                this.moveFlag = 1;
-                this.returnedToCenter = true;
-            }
-        } catch (Exception e) {
+        synchronized (this) {
+            this.moveFlag = 0;
+            this.returnedToCenter = true;
         }
     }
 
+    /**
+     * 处理游戏手柄按键（用于调速）
+     */
     public void onKeyUp(int keyCode, KeyEvent event) {
-        int action = event.getAction();
-        if (action == 1) {
-            if (keyCode == 102) {
-                this.speed++;
-                if (this.speed > 10) {
-                    this.speed = 10;
-                }
-            } else if (keyCode == 104) {
-                this.speed--;
-                if (this.speed < 2) {
-                    this.speed = 2;
-                }
+        if (event.getAction() == KeyEvent.ACTION_UP) {
+            // 按键 R2(104) 切换高速，L2(102) 切换低速
+            if (keyCode == 104) {
+                setSpeedGear(SpeedGear.HIGH);
+            } else if (keyCode == 102) {
+                setSpeedGear(SpeedGear.LOW);
             }
         }
     }
 
+    /**
+     * 将摇杆坐标转换为8方向命令
+     */
     public void moveToPoint(int x, int y) {
         try {
-            int distance = (int) Math.round(calculateDistance(x, y));
-            if (distance >= 2) {  // 死区阈值从1提高到2，过滤回弹抖动
-                double theta = CalculateAngle(x, y);
-                synchronized (this) {
-                    this.returnedToCenter = false;  // 新的移动指令，清除归位标志
-                    if (MOVEMENT_ANGLES.FOWARD.isInDirection(theta)) {
-                        this.moveFlag = 2;  // 前进
-                    } else if (MOVEMENT_ANGLES.RIGHT.isInDirection(theta)) {
-                        this.moveFlag = 5;  // 右转
-                    } else if (MOVEMENT_ANGLES.LEFT.isInDirection(theta)) {
-                        this.moveFlag = 4;  // 左转
-                    } else if (MOVEMENT_ANGLES.BACKWARD.isInDirection(theta)) {
-                        this.moveFlag = 3;  // 后退
-                    }
-                }
+            int distance = (int) Math.round(Math.sqrt(x * x + y * y));
+            if (distance < 2) return;  // 死区
+
+            double angle = Math.toDegrees(Math.atan2(-y, x));  // 注意Y轴反转
+            if (angle < 0) angle += 360.0;
+
+            int direction = findClosestDirection(angle);
+            synchronized (this) {
+                this.returnedToCenter = false;
+                this.moveFlag = direction;
             }
         } catch (Exception e) {
+            AppLog.e(TAG, "moveToPoint error: " + e.getMessage());
         }
     }
 
-    private double CalculateAngle(int x, int y) {
-        if (x == 0 && y > 0) {
-            return 90.0d;
-        }
-        if (x == 0 && y < 0) {
-            return 270.0d;
-        }
-        double theta = ((Math.atan(y / x) * 360.0d) / 2.0d) / 3.141592653589793d;
-        if (x >= 0 && y >= 0) {
-            if (theta < 22.5d) {
-                return theta + 360.0d;
+    /**
+     * 找到最接近的方向（8方向）
+     */
+    private int findClosestDirection(double angle) {
+        int best = 1;
+        double bestDiff = 999;
+        for (int i = 1; i <= 8; i++) {
+            double diff = angleDiff(angle, DIR_ANGLES[i - 1]);
+            if (diff < bestDiff) {
+                bestDiff = diff;
+                best = i;
             }
-            return theta;
-        } else if (x < 0 && y >= 0) {
-            return theta + 180.0d;
-        } else {
-            if (x < 0 && y < 0) {
-                return theta + 180.0d;
-            }
-            if (x > 0 && y < 0) {
-                return theta + 360.0d;
-            }
-            return theta;
         }
+        return best;
     }
 
-    private double calculateDistance(int x, int y) {
-        return Math.sqrt(Math.pow(x, 2.0d) + Math.pow(y, 2.0d));
-    }
-
-    /* loaded from: classes.dex */
-    public enum MOVEMENT_ANGLES {
-        FOWARD(135.0d, 46.0d),
-        LEFT(225.0d, 136.0d),
-        BACKWARD(315.0d, 226.0d),
-        RIGHT(405.0d, 316.0d);
-
-        private final double leftAngle;
-        private final double rightAngle;
-
-
-
-        MOVEMENT_ANGLES(double leftAngle, double rightAngle) {
-            this.rightAngle = rightAngle;
-            this.leftAngle = leftAngle;
-        }
-
-        public boolean isInDirection(double angle) {
-            return this.leftAngle >= angle && angle >= this.rightAngle;
-        }
+    private double angleDiff(double a, double b) {
+        double d = Math.abs(a - b);
+        if (d > 180) d = 360 - d;
+        return d;
     }
 
     public void init() {
         try {
             udpSocket = new UdpSocket();
             udpSocket.init();
-
-            AppLog.i("TAG", "udp initialized!");
-            //sendAnimationMessage(MainActivity.MSG_PLAY_ANIMATION_1);
+            AppLog.i(TAG, "UDP initialized");
         } catch (Exception e) {
-            AppLog.e("TAG", "Error:" + e.getMessage());
+            AppLog.e(TAG, "Init error: " + e.getMessage());
         }
-        new Thread(this.movingTask).start();
-
+        new Thread(movingTask).start();
     }
+
     private void sendControlCmd(String cmd) {
-        AppLog.i(TAG, "---->sendControlCmd: " + cmd);
-        boolean rest = false;
+        AppLog.i(TAG, "sendCmd: " + cmd);
         try {
-            if (udpSocket != null && udpSocket.isInitialized()) {
-                // 添加回车换行符 \r\n
-                String cmdWithNewLine = cmd + "\r\n";
-                rest = udpSocket.send(cmdWithNewLine, Constants.CAR_CONTROL_IP, Constants.CAR_CONTROL_PORT);
-                AppLog.i(TAG, "<----sendControlCmd: " + cmd);
-            } else {
-                AppLog.e("TAG", "UDP socket not initialized");
+            if (udpSocket != null && udpSocket.isInitialized
+                    ()) {
+                udpSocket.send(cmd + "\r\n", Constants.getDeviceIp(context), Constants.CAR_CONTROL_PORT);
             }
         } catch (Exception e) {
-            AppLog.e("TAG", "Error sending control command: " + e.getMessage());
+            AppLog.e(TAG, "Send error: " + e.getMessage());
         }
-
     }
 
-    /**
-     * 断开UDP连接
-     */
     public void disconnect() {
+        moveTaskRunning = false;
         if (udpSocket != null) {
             udpSocket.close();
         }
     }
 
-    /**
-     * 检查连接状态
-     * @return 是否已连接
-     */
     public boolean isConnected() {
         return udpSocket != null && udpSocket.isInitialized();
     }
-
-
 }

@@ -15,10 +15,27 @@
             android:defaultValue="dji0001"
             android:key="dev_mac"
             android:title="@string/pref_dev_mac" />
+        <EditTextPreference
+            android:defaultValue="10.144.0.1"
+            android:key="device_ip"
+            android:title="@string/pref_device_ip"
+            android:summary="@string/pref_device_ip_summary"
+            android:inputType="textUri" />
         <SwitchPreference
-            android:defaultValue="true"
+            android:defaultValue="false"
             android:key="showJoystick"
-            android:title="@string/pref_show_joystick" />
+            android:title="@string/pref_show_joystick"
+            android:summary="@string/pref_show_joystick_summary" />
+        <SwitchPreference
+            android:defaultValue="false"
+            android:key="showCalibrationDot"
+            android:title="@string/pref_show_calibration_dot"
+            android:summary="@string/pref_show_calibration_dot_summary" />
+        <SwitchPreference
+            android:defaultValue="false"
+            android:key="showLocationMap"
+            android:title="@string/pref_show_location_map"
+            android:summary="@string/pref_show_location_map_summary" />
         <CheckBoxPreference
             android:defaultValue="false"
             android:key="network_use_cellular_data"

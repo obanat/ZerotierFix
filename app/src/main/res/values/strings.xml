@@ -1,5 +1,9 @@
 <resources>
     <string name="app_name">FWD Fix</string>
+    <string name="press_back_again_to_exit">Press back again to exit</string>
+    <string name="pref_show_calibration_dot">Show Calibration Dots</string>
+    <string name="pref_show_calibration_dot_summary">Display draggable dots for calibrating left/right joystick touch injection points</string>
+    <string name="accessibility_service_desc">Gamepad to touch injection service. Translates gamepad joystick movements into touch events for game control.</string>
 
     <string name="button_connect">Connect</string>
     <string name="button_disconnect">Disconnect</string>
@@ -60,6 +64,8 @@
     <string name="preferences_network_disable_ipv6_summary">You will need to disconnect &amp; reconnect for this setting to take effect.</string>
     <string name="preferences_network_use_cell_data">Use Cellular Data</string>
     <string name="pref_dev_mac">Device Code</string>
+    <string name="pref_device_ip">Device IP Address</string>
+    <string name="pref_device_ip_summary">IP address of the remote device (default: 10.144.0.1)</string>
     <string name="ipv6_not_available">IPv6: N/A</string>
     <string name="ipv6_disconnected">Disconnected</string>
     <string name="ipv6_connected">Connected</string>
@@ -159,5 +165,11 @@
     <string name="dialog_no_notification_alert_title">Notification Permission Not Granted</string>
     <string name="open_notification_settings">Goto notification settings</string>
     <string name="dont_show_again">Don\'t show again</string>
-    <string name="pref_show_joystick">show Joystick</string>
+    <string name="pref_show_joystick">Show Joystick</string>
+    <string name="pref_show_joystick_summary">Requires overlay permission and accessibility permission</string>
+    <string name="pref_show_location_map">Show Location Map</string>
+    <string name="pref_show_location_map_summary">Requires overlay permission. Display floating map window showing GPS location from device</string>
+    <string name="location_map_title">Location Map</string>
+    <string name="exit_app_title">Exit App</string>
+    <string name="exit_app_message">Are you sure you want to exit? All resources will be released.</string>
 </resources>

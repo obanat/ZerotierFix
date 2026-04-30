@@ -67,7 +67,7 @@ public class JoystickFloatWindowManager {
                 WindowManager.LayoutParams.WRAP_CONTENT,
                 WindowManager.LayoutParams.WRAP_CONTENT,
                 layoutFlag,
-                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE | WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN | WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL,
+                WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN | WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL,
                 PixelFormat.TRANSLUCENT
         );
 
@@ -90,8 +90,10 @@ public class JoystickFloatWindowManager {
                         initialTouchY = event.getRawY();
                         isDragging = false;
 
-                        // 点击悬浮窗时，临时获取焦点以接收键盘/手柄事件
-                        requestFocus();
+                        // 点击悬浮窗时，将焦点交给 JoystickView 以接收手柄事件
+                        if (joystickView != null) {
+                            joystickView.requestFocus();
+                        }
                         return true;
 
                     case MotionEvent.ACTION_MOVE:

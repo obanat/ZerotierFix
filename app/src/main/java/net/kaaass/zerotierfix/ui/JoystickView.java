@@ -360,16 +360,14 @@ public class JoystickView extends View {
     
     @Override
     public boolean onKeyDown(int keyCode, KeyEvent event) {
-        // 只打印按键代码，过滤无关信息
         Log.i(TAG, "onKeyDown: keyCode=" + keyCode + ", " + KeyEvent.keyCodeToString(keyCode));
-        return super.onKeyDown(keyCode, event);
+        return true;  // 消费事件，防止传递到下层
     }
 
     @Override
     public boolean onKeyUp(int keyCode, KeyEvent event) {
-        // 只打印按键代码，过滤无关信息
         Log.i(TAG, "onKeyUp: keyCode=" + keyCode + ", " + KeyEvent.keyCodeToString(keyCode));
-        return super.onKeyUp(keyCode, event);
+        return true;  // 消费事件，防止传递到下层
     }
     
     private boolean processMoveEvent(MotionEvent ev) {

@@ -135,4 +135,16 @@
         app:layout_anchor="@id/status_bar"
         app:layout_anchorGravity="end|top"
         app:srcCompat="@drawable/ic_abstract_add" />
+
+    <com.google.android.material.floatingactionbutton.FloatingActionButton
+        android:id="@+id/fab_exit_app"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="start"
+        android:layout_margin="@dimen/fab_margin"
+        app:layout_anchor="@id/status_bar"
+        app:layout_anchorGravity="start|top"
+        app:backgroundTint="#FFFFFF"
+        app:tint="@android:color/holo_red_light"
+        app:srcCompat="@android:drawable/ic_menu_close_clear_cancel" />
 </androidx.coordinatorlayout.widget.CoordinatorLayout>

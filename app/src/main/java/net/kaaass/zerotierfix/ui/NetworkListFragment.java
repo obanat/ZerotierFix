@@ -35,6 +35,7 @@ import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
 import androidx.appcompat.widget.SwitchCompat;
 import androidx.core.app.NotificationManagerCompat;
+import androidx.core.content.ContextCompat;
 import androidx.fragment.app.Fragment;
 import androidx.lifecycle.ViewModelProvider;
 import androidx.recyclerview.widget.RecyclerView;
@@ -122,8 +123,12 @@ public class NetworkListFragment extends Fragment {
 
     private View emptyView = null;
     private JoystickFloatWindowManager joystickFloatWindow;
+    private CalibrationFloatManager calibrationFloat;
+    private GamepadOverlayManager gamepadOverlay;
     private WifiCarController wifiCarController;
+    private LocationMapFloatManager locationMapFloat;
     private ActivityResultLauncher<Intent> overlayPermissionLauncher;
+    private ActivityResultLauncher<String[]> locationPermissionLauncher;
     private SharedPreferences.OnSharedPreferenceChangeListener prefListener;
     final private RecyclerView.AdapterDataObserver checkIfEmptyObserver = new RecyclerView.AdapterDataObserver() {
         @Override
@@ -209,11 +214,23 @@ public class NetworkListFragment extends Fragment {
                 updateNetworkListAndNotify();
             }
         });
-        // 初始化悬浮窗权限回调
+        // 初始化悬浮窗权限回调：权限授予后，各功能根据自身开关状态决定是否显示
         overlayPermissionLauncher = registerForActivityResult(
                 new ActivityResultContracts.StartActivityForResult(), (activityResult) -> {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && Settings.canDrawOverlays(context)) {
-                showJoystickFloatWindow();
+                requestJoystickFloatWindow();
+                requestCalibrationFloat();
+                requestLocationMapFloat();
+            }
+        });
+        // 初始化位置权限回调
+        locationPermissionLauncher = registerForActivityResult(
+                new ActivityResultContracts.RequestMultiplePermissions(), (resultMap) -> {
+            Boolean fineGranted = resultMap.get(android.Manifest.permission.ACCESS_FINE_LOCATION);
+            Boolean coarseGranted = resultMap.get(android.Manifest.permission.ACCESS_COARSE_LOCATION);
+            if (fineGranted != null && fineGranted && coarseGranted != null && coarseGranted) {
+                // 权限已授予，显示地图悬浮窗
+                showLocationMapFloat();
             }
         });
     }
@@ -285,6 +302,20 @@ public class NetworkListFragment extends Fragment {
             startActivity(new Intent(getActivity(), JoinNetworkActivity.class));
         });
 
+        // 设置退出按钮
+        FloatingActionButton fabExit = view.findViewById(R.id.fab_exit_app);
+        fabExit.setOnClickListener(parentView -> {
+            new AlertDialog.Builder(requireContext())
+                    .setTitle(R.string.exit_app_title)
+                    .setMessage(R.string.exit_app_message)
+                    .setPositiveButton(android.R.string.ok, (dialog, which) -> {
+                        exitApp();
+                        requireActivity().finish();
+                    })
+                    .setNegativeButton(android.R.string.cancel, null)
+                    .show();
+        });
+
         // 当前连接网络变更时更新列表
         this.viewModel.getConnectNetworkId().observe(getViewLifecycleOwner(), networkId -> {
                 this.recyclerViewAdapter.notifyDataSetChanged();
@@ -322,6 +353,12 @@ public class NetworkListFragment extends Fragment {
 
         // 初始化 WifiCarController
         initJoystickFloatWindow();
+
+        // 初始化校准圆点
+        initCalibrationFloat();
+
+        // 初始化位置地图悬浮窗
+        initLocationMapFloat();
     }
 
     @Override
@@ -337,6 +374,12 @@ public class NetworkListFragment extends Fragment {
         // 显示摇杆悬浮窗
         requestJoystickFloatWindow();
 
+        // 显示校准圆点
+        requestCalibrationFloat();
+
+        // 显示位置地图悬浮窗
+        requestLocationMapFloat();
+
         // 获取 IPv6 地址并检测连接
         fetchIpv6Address();
     }
@@ -345,6 +388,17 @@ public class NetworkListFragment extends Fragment {
     public void onCreateOptionsMenu(@NonNull Menu menu, MenuInflater menuInflater) {
         Log.d(TAG, "NetworkListFragment.onCreateOptionsMenu");
         menuInflater.inflate(R.menu.menu_network_list, menu);
+        // 动态设置版本号菜单项
+        MenuItem versionItem = menu.findItem(R.id.menu_item_version);
+        if (versionItem != null) {
+            try {
+                String versionName = requireActivity().getPackageManager()
+                        .getPackageInfo(requireActivity().getPackageName(), 0).versionName;
+                versionItem.setTitle("Ver " + (versionName != null ? versionName : ""));
+            } catch (Exception e) {
+                versionItem.setTitle("Ver");
+            }
+        }
         super.onCreateOptionsMenu(menu, menuInflater);
         this.eventBus.post(new NodeStatusRequestEvent());
     }
@@ -356,9 +410,8 @@ public class NetworkListFragment extends Fragment {
             Log.d(TAG, "Selected Settings");
             startActivity(new Intent(getActivity(), PrefsActivity.class));
             return true;
-        } else if (menuId == R.id.menu_item_peers) {
-            Log.d(TAG, "Selected peers");
-            startActivity(new Intent(getActivity(), PeerListActivity.class));
+        } else if (menuId == R.id.menu_item_version) {
+            // 版本号菜单，无操作
             return true;
         } else if (menuId == R.id.menu_item_orbit) {
             Log.d(TAG, "Selected orbit");
@@ -366,6 +419,39 @@ public class NetworkListFragment extends Fragment {
             return true;
         }
         return super.onOptionsItemSelected(menuItem);
+    }
+
+    /**
+     * 退出应用时调用，停止VPN服务并释放资源
+     */
+    public void exitApp() {
+        // 停止 VPN 服务
+        stopService();
+        // 释放摇杆悬浮窗
+        if (joystickFloatWindow != null) {
+            joystickFloatWindow.release();
+            joystickFloatWindow = null;
+        }
+        // 释放校准圆点
+        if (calibrationFloat != null) {
+            calibrationFloat.release();
+            calibrationFloat = null;
+        }
+        // 释放位置地图悬浮窗
+        if (locationMapFloat != null) {
+            locationMapFloat.release();
+            locationMapFloat = null;
+        }
+        // 释放手柄覆盖层
+        if (gamepadOverlay != null) {
+            gamepadOverlay.release();
+            gamepadOverlay = null;
+        }
+        // 断开小车控制器
+        if (wifiCarController != null) {
+            wifiCarController.disconnect();
+            wifiCarController = null;
+        }
     }
 
     @Override
@@ -381,6 +467,21 @@ public class NetworkListFragment extends Fragment {
         if (joystickFloatWindow != null) {
             joystickFloatWindow.release();
             joystickFloatWindow = null;
+        }
+        // 释放校准圆点资源
+        if (calibrationFloat != null) {
+            calibrationFloat.release();
+            calibrationFloat = null;
+        }
+        // 释放位置地图悬浮窗
+        if (locationMapFloat != null) {
+            locationMapFloat.release();
+            locationMapFloat = null;
+        }
+        // 释放手柄覆盖层
+        if (gamepadOverlay != null) {
+            gamepadOverlay.release();
+            gamepadOverlay = null;
         }
         if (wifiCarController != null) {
             wifiCarController.disconnect();
@@ -536,7 +637,7 @@ public class NetworkListFragment extends Fragment {
      * 请求悬浮窗权限，权限获取后显示摇杆悬浮窗
      */
     private void requestJoystickFloatWindow() {
-        if (!getBoolSharedPreference("showJoystick", true)) {
+        if (!getBoolSharedPreference("showJoystick", Constants.SHOW_JOYSTICKVIEW_DEF_VALUE)) {
             return;
         }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !Settings.canDrawOverlays(requireContext())) {
@@ -565,7 +666,7 @@ public class NetworkListFragment extends Fragment {
         if (joystickFloatWindow == null) {
             joystickFloatWindow = JoystickFloatWindowManager.getInstance(requireContext());
 
-            wifiCarController = new WifiCarController();
+            wifiCarController = new WifiCarController(requireContext());
             wifiCarController.init();
             // 绑定摇杆事件到 WifiCarController
             joystickFloatWindow.setOnJoystickMovedListener(new JoystickView.JoystickMovedListener() {
@@ -594,15 +695,149 @@ public class NetworkListFragment extends Fragment {
         SharedPreferences sp = PreferenceManager.getDefaultSharedPreferences(getContext());
         prefListener = (sharedPreferences, key) -> {
             if ("showJoystick".equals(key)) {
-                boolean show = sharedPreferences.getBoolean(key, true);
+                boolean show = sharedPreferences.getBoolean(key, Constants.SHOW_JOYSTICKVIEW_DEF_VALUE);
                 if (show) {
                     requestJoystickFloatWindow();
                 } else if (joystickFloatWindow != null) {
                     joystickFloatWindow.hide();
                 }
             }
+            if ("showCalibrationDot".equals(key)) {
+                boolean show = sharedPreferences.getBoolean(key, Constants.SHOW_CALIBRATION_DOT_DEF_VALUE);
+                if (show) {
+                    requestCalibrationFloat();
+                } else {
+                    if (calibrationFloat != null) calibrationFloat.hide();
+                    if (gamepadOverlay != null) gamepadOverlay.hide();
+                }
+            }
+            if ("showLocationMap".equals(key)) {
+                boolean show = sharedPreferences.getBoolean(key, Constants.SHOW_LOCATION_MAP_DEF_VALUE);
+                if (show) {
+                    requestLocationMapFloat();
+                } else {
+                    if (locationMapFloat != null) locationMapFloat.hide();
+                }
+            }
         };
         sp.registerOnSharedPreferenceChangeListener(prefListener);
+    }
+
+    /**
+     * 初始化校准圆点悬浮窗
+     */
+    private void initCalibrationFloat() {
+        if (calibrationFloat == null) {
+            calibrationFloat = CalibrationFloatManager.getInstance(requireContext());
+        }
+        if (gamepadOverlay == null) {
+            gamepadOverlay = GamepadOverlayManager.getInstance(requireContext());
+        }
+    }
+
+    /**
+     * 根据偏好设置请求显示校准圆点和手柄覆盖层
+     */
+    private void requestCalibrationFloat() {
+        if (!getBoolSharedPreference("showCalibrationDot", Constants.SHOW_CALIBRATION_DOT_DEF_VALUE)) {
+            return;
+        }
+        if (calibrationFloat == null) {
+            initCalibrationFloat();
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !Settings.canDrawOverlays(requireContext())) {
+            var intent = new Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                    Uri.parse("package:" + requireContext().getPackageName()));
+            overlayPermissionLauncher.launch(intent);
+        } else {
+            calibrationFloat.show();
+            gamepadOverlay.show();
+            checkAccessibilityService();
+        }
+    }
+
+    /**
+     * 初始化位置地图悬浮窗
+     */
+    private void initLocationMapFloat() {
+        if (locationMapFloat == null) {
+            locationMapFloat = LocationMapFloatManager.getInstance(requireContext());
+        }
+    }
+
+    /**
+     * 根据偏好设置请求显示位置地图悬浮窗
+     * 先检查位置权限，再检查悬浮窗权限
+     */
+    private void requestLocationMapFloat() {
+        if (!getBoolSharedPreference("showLocationMap", Constants.SHOW_LOCATION_MAP_DEF_VALUE)) {
+            return;
+        }
+        // 先请求位置权限
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M
+                && (ContextCompat.checkSelfPermission(requireContext(), android.Manifest.permission.ACCESS_FINE_LOCATION) != android.content.pm.PackageManager.PERMISSION_GRANTED
+                    || ContextCompat.checkSelfPermission(requireContext(), android.Manifest.permission.ACCESS_COARSE_LOCATION) != android.content.pm.PackageManager.PERMISSION_GRANTED)) {
+            locationPermissionLauncher.launch(new String[]{
+                    android.Manifest.permission.ACCESS_FINE_LOCATION,
+                    android.Manifest.permission.ACCESS_COARSE_LOCATION
+            });
+            return;
+        }
+        showLocationMapFloat();
+    }
+
+    /**
+     * 检查悬浮窗权限并显示地图悬浮窗
+     */
+    private void showLocationMapFloat() {
+        if (locationMapFloat == null) {
+            initLocationMapFloat();
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !Settings.canDrawOverlays(requireContext())) {
+            var intent = new Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                    Uri.parse("package:" + requireContext().getPackageName()));
+            overlayPermissionLauncher.launch(intent);
+        } else {
+            locationMapFloat.show();
+        }
+    }
+
+    /**
+     * 检查无障碍服务是否已启用，未启用则引导用户开启
+     */
+    private void checkAccessibilityService() {
+        var am = (android.view.accessibility.AccessibilityManager)
+                requireContext().getSystemService(Context.ACCESSIBILITY_SERVICE);
+        boolean enabled = false;
+        try {
+            // 使用 API 正确检测指定服务是否已启用
+            var enabledServices = am.getEnabledAccessibilityServiceList(
+                    android.accessibilityservice.AccessibilityServiceInfo.FEEDBACK_ALL_MASK);
+            if (enabledServices != null) {
+                for (var info : enabledServices) {
+                    var resolvedInfo = info.getResolveInfo();
+                    if (resolvedInfo != null
+                            && resolvedInfo.serviceInfo != null
+                            && resolvedInfo.serviceInfo.packageName.equals(requireContext().getPackageName())) {
+                        enabled = true;
+                        break;
+                    }
+                }
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Failed to check accessibility service: " + e.getMessage());
+        }
+
+        if (!enabled) {
+            Toast.makeText(requireContext(), R.string.accessibility_service_desc, Toast.LENGTH_LONG).show();
+            try {
+                var intent = new Intent(android.provider.Settings.ACTION_ACCESSIBILITY_SETTINGS);
+                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                startActivity(intent);
+            } catch (Exception e) {
+                Log.e(TAG, "Failed to open accessibility settings: " + e.getMessage());
+            }
+        }
     }
 
     /**

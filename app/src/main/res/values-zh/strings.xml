@@ -1,6 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">转发器</string>
+    <string name="press_back_again_to_exit">再按一次返回键退出应用</string>
+    <string name="pref_show_calibration_dot">蓝牙手柄控制</string>
+    <string name="pref_show_calibration_dot_summary">拖拽黄色圆点到发射按钮上，按A键确认，蓝牙手柄的L2/R2按钮对应发射</string>
+    <string name="accessibility_service_desc">手柄触摸注入服务。将手柄摇杆操作转换为屏幕触摸事件，用于控制APP中的虚拟摇杆。</string>
     <string name="button_connect">连接</string>
     <string name="button_disconnect">断开连接</string>
     <string name="custom_dns">DNS 服务器</string>
@@ -59,6 +63,8 @@
     <string name="preferences_network_disable_ipv6_summary">需要手动断开、重连使配置生效</string>
     <string name="preferences_network_use_cell_data">允许移动网络下使用</string>
     <string name="pref_dev_mac">设备编码</string>
+    <string name="pref_device_ip">设备IP地址</string>
+    <string name="pref_device_ip_summary">远程设备的IP地址（默认：10.144.0.1）</string>
     <string name="ipv6_not_available">IPv6: 未获取</string>
     <string name="ipv6_disconnected">未连接</string>
     <string name="ipv6_connected">已连接</string>
@@ -158,4 +164,11 @@
     <string name="dialog_no_notification_alert_title">未开启通知权限</string>
     <string name="open_notification_settings">打开通知设置</string>
     <string name="dont_show_again">不再提示</string>
+    <string name="pref_show_joystick">显示摇杆</string>
+    <string name="pref_show_joystick_summary">需要授予悬浮窗权限和无障碍权限</string>
+    <string name="pref_show_location_map">显示位置地图</string>
+    <string name="pref_show_location_map_summary">需要授予悬浮窗权限。在悬浮小窗口中显示设备GPS定位信息</string>
+    <string name="location_map_title">位置地图</string>
+    <string name="exit_app_title">退出应用</string>
+    <string name="exit_app_message">确定要退出应用吗？所有资源将被释放。</string>
 </resources>
